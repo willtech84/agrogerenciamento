@@ -1,0 +1,9 @@
+{
+  "name": "agro-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for Agro Gerenciamento",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
