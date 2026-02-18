@@ -3,6 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1d6f42" />
+    <meta name="description" content="Console inicial do Agro Gerenciamento" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <title>Agro Gerenciamento</title>
     <style>
       body {
@@ -51,14 +54,25 @@
         padding: 12px;
         border-radius: 8px;
       }
-      button {
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
         margin-top: 16px;
+      }
+      button {
         background: #1d6f42;
         color: #fff;
         border: none;
         padding: 10px 16px;
         border-radius: 8px;
         cursor: pointer;
+      }
+      button[hidden] {
+        display: none;
+      }
+      #install {
+        background: #164f31;
       }
     </style>
   </head>
@@ -72,7 +86,10 @@
         <h2>Status do backend</h2>
         <div id="status" class="status">Carregando...</div>
         <div id="details" class="details"></div>
-        <button id="refresh">Atualizar status</button>
+        <div class="actions">
+          <button id="refresh">Atualizar status</button>
+          <button id="install" hidden>Instalar aplicativo</button>
+        </div>
       </div>
     </main>
     <script src="/app.js"></script>
