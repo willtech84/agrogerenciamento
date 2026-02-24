@@ -126,6 +126,7 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(port, () => {
-  console.log(`Frontend running on port ${port}`);
-  console.log(`Serving static files from: ${publicPath}`);
+  console.log(`[agro-frontend] Frontend running on port ${port}`);
+  console.log(`[agro-frontend] Serving static files from: ${publicPath}`);
+  console.log(`[agro-frontend] cwd: ${process.cwd()}`);
 });

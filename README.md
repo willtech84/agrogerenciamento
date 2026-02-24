@@ -51,3 +51,24 @@ No navegador compatível (Chrome/Edge Android/Desktop), abra o frontend e use o 
 
 - `build-android-debug.yml`: build de APK debug e upload de artefato
 - `build-android-release.yml`: build de APK release com assinatura via secrets
+
+## Troubleshooting (quando aparecer "Not Found")
+
+Se o frontend subir mas a raiz ainda mostrar "Not Found", confirme no terminal do frontend as linhas de startup:
+
+- `[agro-frontend] Frontend running on port 3000`
+- `[agro-frontend] Serving static files from: .../frontend/public`
+
+Comandos rápidos:
+
+```bash
+cd frontend
+npm start
+```
+
+E em outro terminal:
+
+```bash
+curl -I http://localhost:3000/
+curl http://localhost:3000/api/health
+```
