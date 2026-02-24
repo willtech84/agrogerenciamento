@@ -1,4 +1,4 @@
-const CACHE_NAME = "agro-gerenciamento-v1";
+const CACHE_NAME = "agro-gerenciamento-v2";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -25,6 +25,23 @@ self.addEventListener("fetch", (event) => {
 
   if (requestUrl.pathname.startsWith("/api/")) {
     event.respondWith(fetch(event.request));
+    return;
+  }
+
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse.ok) {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put("/index.html", copy));
+          }
+
+          return networkResponse;
+        })
+        .catch(() => caches.match("/index.html"))
+    );
+
     return;
   }
 

@@ -25,6 +25,32 @@ async function loadStatus() {
   }
 }
 
+async function setupServiceWorker() {
+  if (!("serviceWorker" in navigator)) {
+    return;
+  }
+
+  const isLocalhost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+
+  if (isLocalhost) {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map((registration) => registration.unregister()));
+
+    if ("caches" in window) {
+      const cacheNames = await caches.keys();
+      await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
+    }
+
+    return;
+  }
+
+  try {
+    await navigator.serviceWorker.register("/service-worker.js");
+  } catch (error) {
+    console.error("Falha ao registrar service worker", error);
+  }
+}
+
 refreshButton.addEventListener("click", loadStatus);
 
 window.addEventListener("beforeinstallprompt", (event) => {
@@ -48,10 +74,5 @@ window.addEventListener("appinstalled", () => {
   installButton.hidden = true;
 });
 
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/service-worker.js").catch((error) => {
-    console.error("Falha ao registrar service worker", error);
-  });
-}
-
+setupServiceWorker();
 loadStatus();
