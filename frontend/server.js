@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
-import { extname, resolve, sep } from "node:path";
+import { extname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const port = process.env.PORT || 3000;
@@ -21,8 +21,9 @@ const contentTypes = {
 function getSafeFilePath(pathname) {
   const relativePath = pathname.replace(/^[/\\]+/, "") || "index.html";
   const resolvedPath = resolve(publicPath, relativePath);
+  const rel = relative(publicPath, resolvedPath);
 
-  if (resolvedPath !== publicPath && !resolvedPath.startsWith(`${publicPath}${sep}`)) {
+  if (rel.startsWith("..") || isAbsolute(rel)) {
     return null;
   }
 
@@ -52,8 +53,6 @@ async function proxyApi(req, res, pathname, search) {
 
 async function serveFile(res, filePath) {
   if (!filePath) {
-    res.writeHead(400, { "Content-Type": "text/plain; charset=utf-8" });
-    res.end("Bad Request");
     return false;
   }
 
@@ -76,7 +75,24 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  const pathname = decodeURIComponent(url.pathname);
+  let pathname = "/";
+
+  try {
+    pathname = decodeURIComponent(url.pathname);
+  } catch {
+    res.writeHead(400, { "Content-Type": "text/plain; charset=utf-8" });
+    res.end("Bad Request");
+    return;
+  }
+
+  if (pathname === "/") {
+    const rootServed = await serveFile(res, indexFilePath);
+
+    if (rootServed) {
+      return;
+    }
+  }
+
   const filePath = getSafeFilePath(pathname);
   const served = await serveFile(res, filePath);
 
@@ -93,7 +109,7 @@ const server = createServer(async (req, res) => {
   }
 
   res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-  res.end("Não encontrado");
+  res.end("Not Found");
 });
 
 server.listen(port, () => {
