@@ -1,56 +1,32 @@
-const statusEl = document.getElementById("status");
-const detailsEl = document.getElementById("details");
-const refreshButton = document.getElementById("refresh");
-const installButton = document.getElementById("install");
+const qs = (id) => document.getElementById(id);
 
-const authDetailsEl = document.getElementById("auth-details");
-const farmDetailsEl = document.getElementById("farm-details");
-const farmListEl = document.getElementById("farm-list");
-const plotDetailsEl = document.getElementById("plot-details");
-const plotListEl = document.getElementById("plot-list");
+const statusEl = qs("status");
+const detailsEl = qs("details");
+const refreshButton = qs("refresh");
+const installButton = qs("install");
 
-const loginEmailEl = document.getElementById("login-email");
-const loginPasswordEl = document.getElementById("login-password");
-const registerNameEl = document.getElementById("register-name");
-const registerEmailEl = document.getElementById("register-email");
-const registerPasswordEl = document.getElementById("register-password");
-const registerRoleEl = document.getElementById("register-role");
+const authDetailsEl = qs("auth-details");
+const farmDetailsEl = qs("farm-details");
+const farmListEl = qs("farm-list");
+const plotDetailsEl = qs("plot-details");
+const plotListEl = qs("plot-list");
+const cropDetailsEl = qs("crop-details");
+const cropListEl = qs("crop-list");
+const activityDetailsEl = qs("activity-details");
+const activityListEl = qs("activity-list");
+const reportDetailsEl = qs("report-details");
 
-const farmNameEl = document.getElementById("farm-name");
-const farmLocationEl = document.getElementById("farm-location");
-const farmAreaEl = document.getElementById("farm-area");
-
-const plotFarmEl = document.getElementById("plot-farm");
-const plotNameEl = document.getElementById("plot-name");
-const plotAreaEl = document.getElementById("plot-area");
-
-const btnLogin = document.getElementById("btn-login");
-const btnMe = document.getElementById("btn-me");
-const btnLogout = document.getElementById("btn-logout");
-const btnRegister = document.getElementById("btn-register");
-const btnFarmSave = document.getElementById("btn-farm-save");
-const btnFarmClear = document.getElementById("btn-farm-clear");
-const btnFarmsRefresh = document.getElementById("btn-farms-refresh");
-const btnPlotSave = document.getElementById("btn-plot-save");
-const btnPlotClear = document.getElementById("btn-plot-clear");
-const btnPlotsRefresh = document.getElementById("btn-plots-refresh");
-
+let authToken = localStorage.getItem("agro_token") || "";
 let deferredInstallPrompt;
 let editingFarmId = null;
 let editingPlotId = null;
-let authToken = localStorage.getItem("agro_token") || "";
+let editingCropId = null;
 let farmsCache = [];
+let plotsCache = [];
+let cropsCache = [];
 
-function setAuthDetails(payload) {
-  authDetailsEl.textContent = typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
-}
-
-function setFarmDetails(payload) {
-  farmDetailsEl.textContent = typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
-}
-
-function setPlotDetails(payload) {
-  plotDetailsEl.textContent = typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
+function setText(el, value) {
+  el.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
 }
 
 function authHeaders() {
@@ -77,133 +53,21 @@ async function apiRequest(path, options = {}) {
   return data;
 }
 
-function clearFarmForm() {
-  editingFarmId = null;
-  farmNameEl.value = "";
-  farmLocationEl.value = "";
-  farmAreaEl.value = "";
-  btnFarmSave.textContent = "Salvar fazenda";
-}
+function fillSelect(selectEl, items, labelFn, includeEmpty = true) {
+  selectEl.innerHTML = "";
 
-function clearPlotForm() {
-  editingPlotId = null;
-  plotNameEl.value = "";
-  plotAreaEl.value = "";
-  btnPlotSave.textContent = "Salvar talhão";
-}
-
-function setPlotFarmOptions() {
-  plotFarmEl.innerHTML = "";
-
-  if (!farmsCache.length) {
-    const option = document.createElement("option");
-    option.value = "";
-    option.textContent = "Nenhuma fazenda";
-    plotFarmEl.appendChild(option);
-    return;
-  }
-
-  farmsCache.forEach((farm) => {
-    const option = document.createElement("option");
-    option.value = farm.id;
-    option.textContent = `${farm.name} (${farm.location || "sem localização"})`;
-    plotFarmEl.appendChild(option);
-  });
-}
-
-function startFarmEdit(item) {
-  editingFarmId = item.id;
-  farmNameEl.value = item.name || "";
-  farmLocationEl.value = item.location || "";
-  farmAreaEl.value = item.areaHectare ?? "";
-  btnFarmSave.textContent = "Atualizar fazenda";
-}
-
-function startPlotEdit(item) {
-  editingPlotId = item.id;
-  plotNameEl.value = item.name || "";
-  plotAreaEl.value = item.areaHectare ?? "";
-  plotFarmEl.value = item.farmId;
-  btnPlotSave.textContent = "Atualizar talhão";
-}
-
-function renderFarmList(items = []) {
-  farmListEl.innerHTML = "";
-
-  if (!items.length) {
-    farmListEl.innerHTML = '<p class="muted">Nenhuma fazenda cadastrada.</p>';
-    return;
+  if (includeEmpty) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "--";
+    selectEl.appendChild(opt);
   }
 
   items.forEach((item) => {
-    const el = document.createElement("div");
-    el.className = "farm-item";
-    el.innerHTML = `
-      <strong>${item.name}</strong><br />
-      <span class="muted">Local: ${item.location || "-"} | Área: ${item.areaHectare ?? "-"} ha</span><br />
-      <span class="muted">Proprietário: ${item.owner?.name || "-"} (${item.owner?.email || "-"})</span>
-      <div class="actions">
-        <button data-action="edit">Editar</button>
-        <button data-action="delete" class="danger">Excluir</button>
-      </div>
-    `;
-
-    el.querySelector('[data-action="edit"]').addEventListener("click", () => startFarmEdit(item));
-    el.querySelector('[data-action="delete"]').addEventListener("click", async () => {
-      if (!confirm(`Excluir a fazenda ${item.name}?`)) {
-        return;
-      }
-
-      try {
-        await apiRequest(`/api/farms/${item.id}`, { method: "DELETE" });
-        setFarmDetails("Fazenda removida com sucesso.");
-        await loadFarms();
-      } catch (error) {
-        setFarmDetails(error.message);
-      }
-    });
-
-    farmListEl.appendChild(el);
-  });
-}
-
-function renderPlotList(items = []) {
-  plotListEl.innerHTML = "";
-
-  if (!items.length) {
-    plotListEl.innerHTML = '<p class="muted">Nenhum talhão cadastrado.</p>';
-    return;
-  }
-
-  items.forEach((item) => {
-    const el = document.createElement("div");
-    el.className = "farm-item";
-    el.innerHTML = `
-      <strong>${item.name}</strong><br />
-      <span class="muted">Área: ${item.areaHectare ?? "-"} ha</span><br />
-      <span class="muted">Fazenda: ${item.farm?.name || "-"}</span>
-      <div class="actions">
-        <button data-action="edit">Editar</button>
-        <button data-action="delete" class="danger">Excluir</button>
-      </div>
-    `;
-
-    el.querySelector('[data-action="edit"]').addEventListener("click", () => startPlotEdit(item));
-    el.querySelector('[data-action="delete"]').addEventListener("click", async () => {
-      if (!confirm(`Excluir o talhão ${item.name}?`)) {
-        return;
-      }
-
-      try {
-        await apiRequest(`/api/plots/${item.id}`, { method: "DELETE" });
-        setPlotDetails("Talhão removido com sucesso.");
-        await loadPlots();
-      } catch (error) {
-        setPlotDetails(error.message);
-      }
-    });
-
-    plotListEl.appendChild(el);
+    const opt = document.createElement("option");
+    opt.value = item.id;
+    opt.textContent = labelFn(item);
+    selectEl.appendChild(opt);
   });
 }
 
@@ -219,75 +83,289 @@ async function loadStatus() {
 
     statusEl.textContent = ok ? "Online" : "Erro";
     statusEl.classList.add(ok ? "ok" : "error");
-    detailsEl.textContent = JSON.stringify(data, null, 2);
+    setText(detailsEl, data);
   } catch (error) {
     statusEl.textContent = "Erro";
     statusEl.classList.add("error");
-    detailsEl.textContent = error.message;
+    setText(detailsEl, error.message);
   }
+}
+
+function clearFarmForm() {
+  editingFarmId = null;
+  qs("farm-name").value = "";
+  qs("farm-location").value = "";
+  qs("farm-area").value = "";
+  qs("btn-farm-save").textContent = "Salvar fazenda";
+}
+
+function clearPlotForm() {
+  editingPlotId = null;
+  qs("plot-name").value = "";
+  qs("plot-area").value = "";
+  qs("btn-plot-save").textContent = "Salvar talhão";
+}
+
+function clearCropForm() {
+  editingCropId = null;
+  qs("crop-name").value = "";
+  qs("crop-scientific").value = "";
+  qs("crop-cycle").value = "";
+  qs("btn-crop-save").textContent = "Salvar cultura";
+}
+
+function clearActivityForm() {
+  qs("activity-type").value = "PLANTIO";
+  qs("activity-date").value = "";
+  qs("activity-quantity").value = "";
+  qs("activity-unit").value = "";
+  qs("activity-notes").value = "";
+}
+
+function renderList(target, items, renderItem) {
+  target.innerHTML = "";
+
+  if (!items.length) {
+    target.innerHTML = '<p class="muted">Nenhum item.</p>';
+    return;
+  }
+
+  items.forEach((item) => target.appendChild(renderItem(item)));
 }
 
 async function loadFarms() {
   if (!authToken) {
     farmsCache = [];
-    setPlotFarmOptions();
-    renderFarmList([]);
-    setFarmDetails("Faça login para listar fazendas.");
+    fillSelect(qs("plot-farm"), [], (v) => v.name);
+    fillSelect(qs("activity-farm"), [], (v) => v.name);
+    renderList(farmListEl, [], () => document.createElement("div"));
+    setText(farmDetailsEl, "Faça login para gerenciar fazendas.");
     return;
   }
 
   try {
-    const data = await apiRequest("/api/farms", { method: "GET" });
+    const data = await apiRequest("/api/farms");
     farmsCache = data.items || [];
-    setPlotFarmOptions();
-    renderFarmList(farmsCache);
-    setFarmDetails(data);
+    fillSelect(qs("plot-farm"), farmsCache, (farm) => farm.name, false);
+    fillSelect(qs("activity-farm"), farmsCache, (farm) => farm.name, false);
+    setText(farmDetailsEl, data);
+
+    renderList(farmListEl, farmsCache, (item) => {
+      const el = document.createElement("div");
+      el.className = "item";
+      el.innerHTML = `<strong>${item.name}</strong><br><span class="muted">${item.location || "-"} | ${item.areaHectare ?? "-"} ha</span>`;
+
+      const actions = document.createElement("div");
+      actions.className = "actions";
+
+      const edit = document.createElement("button");
+      edit.textContent = "Editar";
+      edit.onclick = () => {
+        editingFarmId = item.id;
+        qs("farm-name").value = item.name || "";
+        qs("farm-location").value = item.location || "";
+        qs("farm-area").value = item.areaHectare ?? "";
+        qs("btn-farm-save").textContent = "Atualizar fazenda";
+      };
+
+      const del = document.createElement("button");
+      del.className = "danger";
+      del.textContent = "Excluir";
+      del.onclick = async () => {
+        try {
+          await apiRequest(`/api/farms/${item.id}`, { method: "DELETE" });
+          await loadFarms();
+          await loadPlots();
+          await loadActivities();
+        } catch (error) {
+          setText(farmDetailsEl, error.message);
+        }
+      };
+
+      actions.append(edit, del);
+      el.appendChild(actions);
+      return el;
+    });
+
     await loadPlots();
+    await loadActivities();
   } catch (error) {
-    setFarmDetails(error.message);
+    setText(farmDetailsEl, error.message);
   }
 }
 
 async function loadPlots() {
   if (!authToken) {
-    renderPlotList([]);
-    setPlotDetails("Faça login para listar talhões.");
+    plotsCache = [];
+    fillSelect(qs("activity-plot"), [], (plot) => plot.name);
+    renderList(plotListEl, [], () => document.createElement("div"));
+    setText(plotDetailsEl, "Faça login para gerenciar talhões.");
     return;
   }
 
-  const farmId = plotFarmEl.value;
-
+  const farmId = qs("plot-farm").value || qs("activity-farm").value;
   if (!farmId) {
-    renderPlotList([]);
-    setPlotDetails("Cadastre/seleciona uma fazenda para listar talhões.");
+    plotsCache = [];
+    fillSelect(qs("activity-plot"), [], (plot) => plot.name);
+    setText(plotDetailsEl, "Selecione uma fazenda para listar talhões.");
+    renderList(plotListEl, [], () => document.createElement("div"));
     return;
   }
 
   try {
-    const data = await apiRequest(`/api/plots?farmId=${encodeURIComponent(farmId)}`, { method: "GET" });
-    renderPlotList(data.items || []);
-    setPlotDetails(data);
+    const data = await apiRequest(`/api/plots?farmId=${encodeURIComponent(farmId)}`);
+    plotsCache = data.items || [];
+    fillSelect(qs("activity-plot"), plotsCache, (plot) => plot.name);
+    setText(plotDetailsEl, data);
+
+    renderList(plotListEl, plotsCache, (item) => {
+      const el = document.createElement("div");
+      el.className = "item";
+      el.innerHTML = `<strong>${item.name}</strong><br><span class="muted">Área: ${item.areaHectare ?? "-"} ha</span>`;
+      const actions = document.createElement("div");
+      actions.className = "actions";
+
+      const edit = document.createElement("button");
+      edit.textContent = "Editar";
+      edit.onclick = () => {
+        editingPlotId = item.id;
+        qs("plot-name").value = item.name || "";
+        qs("plot-area").value = item.areaHectare ?? "";
+        qs("plot-farm").value = item.farmId;
+        qs("btn-plot-save").textContent = "Atualizar talhão";
+      };
+
+      const del = document.createElement("button");
+      del.className = "danger";
+      del.textContent = "Excluir";
+      del.onclick = async () => {
+        try {
+          await apiRequest(`/api/plots/${item.id}`, { method: "DELETE" });
+          await loadPlots();
+          await loadActivities();
+        } catch (error) {
+          setText(plotDetailsEl, error.message);
+        }
+      };
+
+      actions.append(edit, del);
+      el.appendChild(actions);
+      return el;
+    });
   } catch (error) {
-    setPlotDetails(error.message);
+    setText(plotDetailsEl, error.message);
+  }
+}
+
+async function loadCrops() {
+  if (!authToken) {
+    cropsCache = [];
+    fillSelect(qs("activity-crop"), [], (crop) => crop.name);
+    renderList(cropListEl, [], () => document.createElement("div"));
+    setText(cropDetailsEl, "Faça login para gerenciar culturas.");
+    return;
+  }
+
+  try {
+    const data = await apiRequest("/api/crops");
+    cropsCache = data.items || [];
+    fillSelect(qs("activity-crop"), cropsCache, (crop) => crop.name);
+    setText(cropDetailsEl, data);
+
+    renderList(cropListEl, cropsCache, (item) => {
+      const el = document.createElement("div");
+      el.className = "item";
+      el.innerHTML = `<strong>${item.name}</strong><br><span class="muted">${item.scientificName || "-"} | ciclo: ${item.cycleDays ?? "-"} dias</span>`;
+      const actions = document.createElement("div");
+      actions.className = "actions";
+
+      const edit = document.createElement("button");
+      edit.textContent = "Editar";
+      edit.onclick = () => {
+        editingCropId = item.id;
+        qs("crop-name").value = item.name || "";
+        qs("crop-scientific").value = item.scientificName || "";
+        qs("crop-cycle").value = item.cycleDays ?? "";
+        qs("btn-crop-save").textContent = "Atualizar cultura";
+      };
+
+      const del = document.createElement("button");
+      del.className = "danger";
+      del.textContent = "Excluir";
+      del.onclick = async () => {
+        try {
+          await apiRequest(`/api/crops/${item.id}`, { method: "DELETE" });
+          await loadCrops();
+        } catch (error) {
+          setText(cropDetailsEl, error.message);
+        }
+      };
+
+      actions.append(edit, del);
+      el.appendChild(actions);
+      return el;
+    });
+  } catch (error) {
+    setText(cropDetailsEl, error.message);
+  }
+}
+
+async function loadActivities() {
+  if (!authToken) {
+    renderList(activityListEl, [], () => document.createElement("div"));
+    setText(activityDetailsEl, "Faça login para gerenciar atividades.");
+    return;
+  }
+
+  try {
+    const farmId = qs("activity-farm").value;
+    const params = new URLSearchParams();
+    if (farmId) params.set("farmId", farmId);
+
+    const data = await apiRequest(`/api/activities${params.toString() ? `?${params}` : ""}`);
+    setText(activityDetailsEl, data);
+
+    renderList(activityListEl, data.items || [], (item) => {
+      const el = document.createElement("div");
+      el.className = "item";
+      el.innerHTML = `<strong>${item.type}</strong> - ${new Date(item.date).toLocaleDateString("pt-BR")}<br>
+      <span class="muted">Fazenda: ${item.farm?.name || "-"} | Talhão: ${item.plot?.name || "-"} | Cultura: ${item.crop?.name || "-"}</span><br>
+      <span class="muted">Qtd: ${item.quantity ?? "-"} ${item.unit || ""}</span><br>
+      <span class="muted">Obs: ${item.notes || "-"}</span>`;
+
+      const actions = document.createElement("div");
+      actions.className = "actions";
+      const del = document.createElement("button");
+      del.className = "danger";
+      del.textContent = "Excluir";
+      del.onclick = async () => {
+        try {
+          await apiRequest(`/api/activities/${item.id}`, { method: "DELETE" });
+          await loadActivities();
+        } catch (error) {
+          setText(activityDetailsEl, error.message);
+        }
+      };
+      actions.append(del);
+      el.appendChild(actions);
+      return el;
+    });
+  } catch (error) {
+    setText(activityDetailsEl, error.message);
   }
 }
 
 async function setupServiceWorker() {
-  if (!("serviceWorker" in navigator)) {
-    return;
-  }
+  if (!("serviceWorker" in navigator)) return;
 
   const isLocalhost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
-
   if (isLocalhost) {
-    const registrations = await navigator.serviceWorker.getRegistrations();
-    await Promise.all(registrations.map((registration) => registration.unregister()));
-
+    const regs = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(regs.map((r) => r.unregister()));
     if ("caches" in window) {
-      const cacheNames = await caches.keys();
-      await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
+      const names = await caches.keys();
+      await Promise.all(names.map((name) => caches.delete(name)));
     }
-
     return;
   }
 
@@ -298,128 +376,179 @@ async function setupServiceWorker() {
   }
 }
 
-refreshButton.addEventListener("click", loadStatus);
-
-btnRegister.addEventListener("click", async () => {
+qs("btn-register").addEventListener("click", async () => {
   try {
     const data = await apiRequest("/api/auth/register", {
       method: "POST",
       body: JSON.stringify({
-        name: registerNameEl.value,
-        email: registerEmailEl.value,
-        password: registerPasswordEl.value,
-        role: registerRoleEl.value
+        name: qs("register-name").value,
+        email: qs("register-email").value,
+        password: qs("register-password").value,
+        role: qs("register-role").value
       })
     });
 
     authToken = data.token;
     localStorage.setItem("agro_token", authToken);
-    setAuthDetails(data);
+    setText(authDetailsEl, data);
     await loadFarms();
+    await loadCrops();
   } catch (error) {
-    setAuthDetails(error.message);
+    setText(authDetailsEl, error.message);
   }
 });
 
-btnLogin.addEventListener("click", async () => {
+qs("btn-login").addEventListener("click", async () => {
   try {
     const data = await apiRequest("/api/auth/login", {
       method: "POST",
-      body: JSON.stringify({ email: loginEmailEl.value, password: loginPasswordEl.value })
+      body: JSON.stringify({ email: qs("login-email").value, password: qs("login-password").value })
     });
 
     authToken = data.token;
     localStorage.setItem("agro_token", authToken);
-    setAuthDetails(data);
+    setText(authDetailsEl, data);
     await loadFarms();
+    await loadCrops();
   } catch (error) {
-    setAuthDetails(error.message);
+    setText(authDetailsEl, error.message);
   }
 });
 
-btnMe.addEventListener("click", async () => {
+qs("btn-me").addEventListener("click", async () => {
   try {
-    const data = await apiRequest("/api/auth/me", { method: "GET" });
-    setAuthDetails(data);
+    const data = await apiRequest("/api/auth/me");
+    setText(authDetailsEl, data);
   } catch (error) {
-    setAuthDetails(error.message);
+    setText(authDetailsEl, error.message);
   }
 });
 
-btnLogout.addEventListener("click", () => {
+qs("btn-logout").addEventListener("click", () => {
   authToken = "";
   localStorage.removeItem("agro_token");
   farmsCache = [];
-  setPlotFarmOptions();
-  setAuthDetails("Sessão encerrada.");
+  plotsCache = [];
+  cropsCache = [];
+  fillSelect(qs("plot-farm"), [], (v) => v.name);
+  fillSelect(qs("activity-farm"), [], (v) => v.name);
+  fillSelect(qs("activity-plot"), [], (v) => v.name);
+  fillSelect(qs("activity-crop"), [], (v) => v.name);
   clearFarmForm();
   clearPlotForm();
-  renderFarmList([]);
-  renderPlotList([]);
-  setFarmDetails("Faça login para gerenciar fazendas.");
-  setPlotDetails("Faça login para gerenciar talhões.");
+  clearCropForm();
+  clearActivityForm();
+  setText(authDetailsEl, "Sessão encerrada.");
 });
 
-btnFarmSave.addEventListener("click", async () => {
-  if (!authToken) {
-    setFarmDetails("Faça login primeiro.");
-    return;
-  }
-
-  const payload = { name: farmNameEl.value, location: farmLocationEl.value, areaHectare: farmAreaEl.value };
-
+qs("btn-farm-save").addEventListener("click", async () => {
   try {
+    const payload = { name: qs("farm-name").value, location: qs("farm-location").value, areaHectare: qs("farm-area").value };
     if (editingFarmId) {
-      const data = await apiRequest(`/api/farms/${editingFarmId}`, { method: "PUT", body: JSON.stringify(payload) });
-      setFarmDetails(data);
+      await apiRequest(`/api/farms/${editingFarmId}`, { method: "PUT", body: JSON.stringify(payload) });
     } else {
-      const data = await apiRequest("/api/farms", { method: "POST", body: JSON.stringify(payload) });
-      setFarmDetails(data);
+      await apiRequest("/api/farms", { method: "POST", body: JSON.stringify(payload) });
     }
 
     clearFarmForm();
     await loadFarms();
   } catch (error) {
-    setFarmDetails(error.message);
+    setText(farmDetailsEl, error.message);
   }
 });
 
-btnPlotSave.addEventListener("click", async () => {
-  if (!authToken) {
-    setPlotDetails("Faça login primeiro.");
-    return;
-  }
-
-  const farmId = plotFarmEl.value;
-
-  if (!farmId) {
-    setPlotDetails("Selecione uma fazenda.");
-    return;
-  }
-
-  const payload = { name: plotNameEl.value, areaHectare: plotAreaEl.value, farmId };
-
+qs("btn-plot-save").addEventListener("click", async () => {
   try {
+    const payload = { name: qs("plot-name").value, areaHectare: qs("plot-area").value, farmId: qs("plot-farm").value };
     if (editingPlotId) {
-      const data = await apiRequest(`/api/plots/${editingPlotId}`, { method: "PUT", body: JSON.stringify(payload) });
-      setPlotDetails(data);
+      await apiRequest(`/api/plots/${editingPlotId}`, { method: "PUT", body: JSON.stringify(payload) });
     } else {
-      const data = await apiRequest("/api/plots", { method: "POST", body: JSON.stringify(payload) });
-      setPlotDetails(data);
+      await apiRequest("/api/plots", { method: "POST", body: JSON.stringify(payload) });
     }
 
     clearPlotForm();
     await loadPlots();
   } catch (error) {
-    setPlotDetails(error.message);
+    setText(plotDetailsEl, error.message);
   }
 });
 
-btnFarmClear.addEventListener("click", clearFarmForm);
-btnFarmsRefresh.addEventListener("click", loadFarms);
-btnPlotClear.addEventListener("click", clearPlotForm);
-btnPlotsRefresh.addEventListener("click", loadPlots);
-plotFarmEl.addEventListener("change", loadPlots);
+qs("btn-crop-save").addEventListener("click", async () => {
+  try {
+    const payload = {
+      name: qs("crop-name").value,
+      scientificName: qs("crop-scientific").value,
+      cycleDays: qs("crop-cycle").value
+    };
+
+    if (editingCropId) {
+      await apiRequest(`/api/crops/${editingCropId}`, { method: "PUT", body: JSON.stringify(payload) });
+    } else {
+      await apiRequest("/api/crops", { method: "POST", body: JSON.stringify(payload) });
+    }
+
+    clearCropForm();
+    await loadCrops();
+  } catch (error) {
+    setText(cropDetailsEl, error.message);
+  }
+});
+
+qs("btn-activity-save").addEventListener("click", async () => {
+  try {
+    const payload = {
+      type: qs("activity-type").value,
+      date: qs("activity-date").value,
+      farmId: qs("activity-farm").value,
+      plotId: qs("activity-plot").value || null,
+      cropId: qs("activity-crop").value || null,
+      quantity: qs("activity-quantity").value,
+      unit: qs("activity-unit").value,
+      notes: qs("activity-notes").value
+    };
+
+    await apiRequest("/api/activities", { method: "POST", body: JSON.stringify(payload) });
+    clearActivityForm();
+    await loadActivities();
+  } catch (error) {
+    setText(activityDetailsEl, error.message);
+  }
+});
+
+qs("btn-report-summary").addEventListener("click", async () => {
+  try {
+    const farmId = qs("activity-farm").value;
+    const data = await apiRequest(`/api/reports/activities-summary${farmId ? `?farmId=${farmId}` : ""}`);
+    setText(reportDetailsEl, data);
+  } catch (error) {
+    setText(reportDetailsEl, error.message);
+  }
+});
+
+qs("btn-report-crop").addEventListener("click", async () => {
+  try {
+    const data = await apiRequest("/api/reports/activities-by-crop");
+    setText(reportDetailsEl, data);
+  } catch (error) {
+    setText(reportDetailsEl, error.message);
+  }
+});
+
+refreshButton.addEventListener("click", loadStatus);
+qs("btn-farm-clear").addEventListener("click", clearFarmForm);
+qs("btn-farms-refresh").addEventListener("click", loadFarms);
+qs("btn-plot-clear").addEventListener("click", clearPlotForm);
+qs("btn-plots-refresh").addEventListener("click", loadPlots);
+qs("btn-crop-clear").addEventListener("click", clearCropForm);
+qs("btn-crops-refresh").addEventListener("click", loadCrops);
+qs("btn-activity-clear").addEventListener("click", clearActivityForm);
+qs("btn-activities-refresh").addEventListener("click", loadActivities);
+qs("plot-farm").addEventListener("change", loadPlots);
+qs("activity-farm").addEventListener("change", async () => {
+  qs("plot-farm").value = qs("activity-farm").value;
+  await loadPlots();
+  await loadActivities();
+});
 
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
@@ -428,10 +557,7 @@ window.addEventListener("beforeinstallprompt", (event) => {
 });
 
 installButton.addEventListener("click", async () => {
-  if (!deferredInstallPrompt) {
-    return;
-  }
-
+  if (!deferredInstallPrompt) return;
   deferredInstallPrompt.prompt();
   await deferredInstallPrompt.userChoice;
   deferredInstallPrompt = null;
@@ -445,6 +571,11 @@ window.addEventListener("appinstalled", () => {
 setupServiceWorker();
 loadStatus();
 loadFarms();
-setAuthDetails(authToken ? "Token carregado do navegador. Use 'Meu perfil'." : "Sem sessão. Faça login ou cadastro.");
-setFarmDetails("Faça login para gerenciar fazendas.");
-setPlotDetails("Faça login para gerenciar talhões.");
+loadCrops();
+loadActivities();
+setText(authDetailsEl, authToken ? "Token carregado do navegador. Use 'Meu perfil'." : "Sem sessão. Faça login ou cadastro.");
+setText(farmDetailsEl, "Faça login para gerenciar fazendas.");
+setText(plotDetailsEl, "Faça login para gerenciar talhões.");
+setText(cropDetailsEl, "Faça login para gerenciar culturas.");
+setText(activityDetailsEl, "Faça login para gerenciar atividades.");
+setText(reportDetailsEl, "Selecione uma ação de relatório.");

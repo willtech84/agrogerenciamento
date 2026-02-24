@@ -137,6 +137,16 @@ npm run prisma:migrate
 - `POST /plots` (Bearer token)
 - `PUT /plots/:id` (Bearer token)
 - `DELETE /plots/:id` (Bearer token)
+- `GET /crops` (Bearer token)
+- `POST /crops` (Bearer token, ADMIN/MANAGER)
+- `PUT /crops/:id` (Bearer token, ADMIN/MANAGER)
+- `DELETE /crops/:id` (Bearer token, ADMIN/MANAGER)
+- `GET /activities` (Bearer token)
+- `POST /activities` (Bearer token)
+- `PUT /activities/:id` (Bearer token)
+- `DELETE /activities/:id` (Bearer token)
+- `GET /reports/activities-summary` (Bearer token)
+- `GET /reports/activities-by-crop` (Bearer token)
 - `GET /docs` (documentação rápida em JSON)
 
 Exemplo de registro:
@@ -165,4 +175,28 @@ curl -X POST http://localhost:4000/plots \
   -H "Authorization: Bearer SEU_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"name":"Talhão A","areaHectare":35,"farmId":"ID_DA_FAZENDA"}'
+```
+
+Exemplo de criação de cultura:
+
+```bash
+curl -X POST http://localhost:4000/crops \
+  -H "Authorization: Bearer SEU_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Soja","scientificName":"Glycine max","cycleDays":120}'
+```
+
+Exemplo de criação de atividade:
+
+```bash
+curl -X POST http://localhost:4000/activities \
+  -H "Authorization: Bearer SEU_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"type":"PLANTIO","date":"2026-02-24","farmId":"ID_DA_FAZENDA","plotId":"ID_DO_TALHAO","cropId":"ID_DA_CULTURA","quantity":40,"unit":"ha","notes":"Plantio safra 26/27"}'
+```
+
+Exemplo de relatório simples:
+
+```bash
+curl -H "Authorization: Bearer SEU_TOKEN" http://localhost:4000/reports/activities-summary
 ```

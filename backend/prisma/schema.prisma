@@ -13,39 +13,83 @@ enum UserRole {
   OPERATOR
 }
 
+enum ActivityType {
+  PLANTIO
+  COLHEITA
+  APLICACAO
+}
+
 model User {
-  id           String   @id @default(cuid())
+  id           String     @id @default(cuid())
   name         String
-  email        String   @unique
+  email        String     @unique
   passwordHash String
-  role         UserRole @default(OPERATOR)
+  role         UserRole   @default(OPERATOR)
   farms        Farm[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  activities   Activity[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 }
 
 model Farm {
-  id          String   @id @default(cuid())
+  id          String     @id @default(cuid())
   name        String
   location    String?
   areaHectare Float?
   ownerId     String
-  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner       User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   plots       Plot[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  activities  Activity[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   @@index([ownerId])
 }
 
 model Plot {
-  id          String   @id @default(cuid())
+  id          String     @id @default(cuid())
   name        String
   areaHectare Float?
   farmId      String
-  farm        Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  farm        Farm       @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  activities  Activity[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   @@index([farmId])
+}
+
+model Crop {
+  id           String     @id @default(cuid())
+  name         String
+  scientificName String?
+  cycleDays    Int?
+  activities   Activity[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Activity {
+  id          String       @id @default(cuid())
+  type        ActivityType
+  date        DateTime
+  notes       String?
+  quantity    Float?
+  unit        String?
+  farmId      String
+  plotId      String?
+  cropId      String?
+  createdById String
+  farm        Farm         @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  plot        Plot?        @relation(fields: [plotId], references: [id], onDelete: SetNull)
+  crop        Crop?        @relation(fields: [cropId], references: [id], onDelete: SetNull)
+  createdBy   User         @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([farmId])
+  @@index([plotId])
+  @@index([cropId])
+  @@index([createdById])
+  @@index([date])
 }
