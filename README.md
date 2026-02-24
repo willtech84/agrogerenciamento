@@ -65,6 +65,17 @@ cd /c/agro
 ./stop-local.sh
 ```
 
+
+### Hotfix rápido se ainda ficar 404 na raiz
+
+Se você estiver numa branch/cópia antiga e continuar com `Not Found` em `/`, aplique a correção do servidor estático com:
+
+```bash
+cd /c/agro
+./apply-hotfix-frontend-404.sh
+./start-local.sh
+```
+
 ## Instalação como app
 
 No navegador compatível (Chrome/Edge Android/Desktop), abra o frontend e use o botão **Instalar aplicativo** quando aparecer.
