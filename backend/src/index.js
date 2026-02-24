@@ -52,6 +52,20 @@ function isPrivileged(user) {
   return ["ADMIN", "MANAGER"].includes(user?.role);
 }
 
+async function canAccessFarm(farmId, user) {
+  const farm = await prisma.farm.findUnique({ where: { id: farmId } });
+
+  if (!farm) {
+    return { allowed: false, reason: "not_found" };
+  }
+
+  if (isPrivileged(user) || farm.ownerId === user.sub) {
+    return { allowed: true, farm };
+  }
+
+  return { allowed: false, reason: "forbidden" };
+}
+
 app.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok", databaseUrl });
 });
@@ -68,7 +82,11 @@ app.get("/", (_req, res) => {
       "GET /farms",
       "POST /farms",
       "PUT /farms/:id",
-      "DELETE /farms/:id"
+      "DELETE /farms/:id",
+      "GET /plots?farmId=...",
+      "POST /plots",
+      "PUT /plots/:id",
+      "DELETE /plots/:id"
     ]
   });
 });
@@ -111,16 +129,23 @@ app.get("/docs", (_req, res) => {
         auth: "Bearer token",
         body: { name: "Fazenda Santa Luzia", location: "Sorriso/MT", areaHectare: 120.5 }
       },
-      update: {
-        method: "PUT",
-        path: "/farms/:id",
-        auth: "Bearer token"
+      update: { method: "PUT", path: "/farms/:id", auth: "Bearer token" },
+      delete: { method: "DELETE", path: "/farms/:id", auth: "Bearer token" }
+    },
+    plots: {
+      list: {
+        method: "GET",
+        path: "/plots?farmId=ID_DA_FAZENDA",
+        auth: "Bearer token (com acesso à fazenda)"
       },
-      delete: {
-        method: "DELETE",
-        path: "/farms/:id",
-        auth: "Bearer token"
-      }
+      create: {
+        method: "POST",
+        path: "/plots",
+        auth: "Bearer token",
+        body: { name: "Talhão A", areaHectare: 35, farmId: "ID_DA_FAZENDA" }
+      },
+      update: { method: "PUT", path: "/plots/:id", auth: "Bearer token" },
+      delete: { method: "DELETE", path: "/plots/:id", auth: "Bearer token" }
     }
   });
 });
@@ -222,11 +247,7 @@ app.get("/farms", authRequired, async (req, res) => {
 
   const items = await prisma.farm.findMany({
     where,
-    include: {
-      owner: {
-        select: { id: true, name: true, email: true }
-      }
-    },
+    include: { owner: { select: { id: true, name: true, email: true } } },
     orderBy: { createdAt: "desc" }
   });
 
@@ -250,17 +271,8 @@ app.post("/farms", authRequired, async (req, res) => {
   }
 
   const farm = await prisma.farm.create({
-    data: {
-      name,
-      location,
-      areaHectare,
-      ownerId: req.user.sub
-    },
-    include: {
-      owner: {
-        select: { id: true, name: true, email: true }
-      }
-    }
+    data: { name, location, areaHectare, ownerId: req.user.sub },
+    include: { owner: { select: { id: true, name: true, email: true } } }
   });
 
   res.status(201).json({ item: farm });
@@ -311,11 +323,7 @@ app.put("/farms/:id", authRequired, async (req, res) => {
   const farm = await prisma.farm.update({
     where: { id: farmId },
     data,
-    include: {
-      owner: {
-        select: { id: true, name: true, email: true }
-      }
-    }
+    include: { owner: { select: { id: true, name: true, email: true } } }
   });
 
   res.status(200).json({ item: farm });
@@ -336,6 +344,148 @@ app.delete("/farms/:id", authRequired, async (req, res) => {
   }
 
   await prisma.farm.delete({ where: { id: farmId } });
+  res.status(204).end();
+});
+
+app.get("/plots", authRequired, async (req, res) => {
+  const farmId = String(req.query.farmId || "").trim();
+
+  if (!farmId) {
+    res.status(400).json({ error: "farmId é obrigatório" });
+    return;
+  }
+
+  const access = await canAccessFarm(farmId, req.user);
+
+  if (!access.allowed) {
+    res.status(access.reason === "not_found" ? 404 : 403).json({ error: access.reason === "not_found" ? "Fazenda não encontrada" : "Acesso negado" });
+    return;
+  }
+
+  const items = await prisma.plot.findMany({
+    where: { farmId },
+    orderBy: { createdAt: "desc" },
+    include: { farm: { select: { id: true, name: true, ownerId: true } } }
+  });
+
+  res.status(200).json({ items });
+});
+
+app.post("/plots", authRequired, async (req, res) => {
+  const name = String(req.body?.name || "").trim();
+  const farmId = String(req.body?.farmId || "").trim();
+  const areaInput = req.body?.areaHectare;
+  const areaHectare = areaInput === undefined || areaInput === null || areaInput === "" ? null : Number(areaInput);
+
+  if (!name || !farmId) {
+    res.status(400).json({ error: "Nome e farmId são obrigatórios" });
+    return;
+  }
+
+  if (areaHectare !== null && Number.isNaN(areaHectare)) {
+    res.status(400).json({ error: "Área inválida" });
+    return;
+  }
+
+  const access = await canAccessFarm(farmId, req.user);
+
+  if (!access.allowed) {
+    res.status(access.reason === "not_found" ? 404 : 403).json({ error: access.reason === "not_found" ? "Fazenda não encontrada" : "Acesso negado" });
+    return;
+  }
+
+  const item = await prisma.plot.create({
+    data: { name, farmId, areaHectare },
+    include: { farm: { select: { id: true, name: true, ownerId: true } } }
+  });
+
+  res.status(201).json({ item });
+});
+
+app.put("/plots/:id", authRequired, async (req, res) => {
+  const plotId = req.params.id;
+  const existing = await prisma.plot.findUnique({ where: { id: plotId }, include: { farm: true } });
+
+  if (!existing) {
+    res.status(404).json({ error: "Talhão não encontrado" });
+    return;
+  }
+
+  const access = await canAccessFarm(existing.farmId, req.user);
+
+  if (!access.allowed) {
+    res.status(access.reason === "not_found" ? 404 : 403).json({ error: access.reason === "not_found" ? "Fazenda não encontrada" : "Acesso negado" });
+    return;
+  }
+
+  const data = {};
+
+  if (req.body?.name !== undefined) {
+    const name = String(req.body.name).trim();
+
+    if (!name) {
+      res.status(400).json({ error: "Nome do talhão é obrigatório" });
+      return;
+    }
+
+    data.name = name;
+  }
+
+  if (req.body?.areaHectare !== undefined) {
+    const area = req.body.areaHectare === null || req.body.areaHectare === "" ? null : Number(req.body.areaHectare);
+
+    if (area !== null && Number.isNaN(area)) {
+      res.status(400).json({ error: "Área inválida" });
+      return;
+    }
+
+    data.areaHectare = area;
+  }
+
+  if (req.body?.farmId !== undefined) {
+    const targetFarmId = String(req.body.farmId || "").trim();
+
+    if (!targetFarmId) {
+      res.status(400).json({ error: "farmId inválido" });
+      return;
+    }
+
+    const targetAccess = await canAccessFarm(targetFarmId, req.user);
+
+    if (!targetAccess.allowed) {
+      res.status(targetAccess.reason === "not_found" ? 404 : 403).json({ error: targetAccess.reason === "not_found" ? "Fazenda não encontrada" : "Acesso negado" });
+      return;
+    }
+
+    data.farmId = targetFarmId;
+  }
+
+  const item = await prisma.plot.update({
+    where: { id: plotId },
+    data,
+    include: { farm: { select: { id: true, name: true, ownerId: true } } }
+  });
+
+  res.status(200).json({ item });
+});
+
+app.delete("/plots/:id", authRequired, async (req, res) => {
+  const plotId = req.params.id;
+  const existing = await prisma.plot.findUnique({ where: { id: plotId }, include: { farm: true } });
+
+  if (!existing) {
+    res.status(404).json({ error: "Talhão não encontrado" });
+    return;
+  }
+
+  const access = await canAccessFarm(existing.farmId, req.user);
+
+  if (!access.allowed) {
+    res.status(access.reason === "not_found" ? 404 : 403).json({ error: access.reason === "not_found" ? "Fazenda não encontrada" : "Acesso negado" });
+    return;
+  }
+
+  await prisma.plot.delete({ where: { id: plotId } });
   res.status(204).end();
 });
 

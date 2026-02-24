@@ -133,6 +133,10 @@ npm run prisma:migrate
 - `POST /farms` (Bearer token)
 - `PUT /farms/:id` (Bearer token)
 - `DELETE /farms/:id` (Bearer token)
+- `GET /plots?farmId=...` (Bearer token)
+- `POST /plots` (Bearer token)
+- `PUT /plots/:id` (Bearer token)
+- `DELETE /plots/:id` (Bearer token)
 - `GET /docs` (documentação rápida em JSON)
 
 Exemplo de registro:
@@ -151,4 +155,14 @@ curl -X POST http://localhost:4000/farms \
   -H "Authorization: Bearer SEU_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"name":"Fazenda Santa Luzia","location":"Sorriso/MT","areaHectare":120.5}'
+```
+
+
+Exemplo de criação de talhão:
+
+```bash
+curl -X POST http://localhost:4000/plots \
+  -H "Authorization: Bearer SEU_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Talhão A","areaHectare":35,"farmId":"ID_DA_FAZENDA"}'
 ```
