@@ -56,7 +56,7 @@ Esse script:
 - mata processos `node.exe` antigos,
 - instala dependências de backend/frontend,
 - sobe backend (`4000`) e frontend (`3001`),
-- faz validações rápidas com `curl`.
+- faz validações rápidas com `curl` e mostra diagnóstico automático se `/` não retornar 200.
 
 Para parar tudo:
 
@@ -94,3 +94,6 @@ Se quiser parar e limpar portas/processos:
 cd /c/agro
 ./stop-local.sh
 ```
+
+
+Se ainda retornar 404 em `/`, consulte `frontend.log` e confirme se o arquivo em execução é o `frontend/server.js` com logs `[agro-frontend]` e faça `git pull` na branch correta.
