@@ -108,3 +108,34 @@ cd /c/agro
 
 
 Se ainda retornar 404 em `/`, consulte `frontend.log` e confirme se o arquivo em execução é o `frontend/server.js` com logs `[agro-frontend]` e faça `git pull` na branch correta.
+
+
+## Backend (Express + Prisma + JWT)
+
+O backend agora usa Express com ORM Prisma e autenticação JWT para o módulo inicial de usuários/multiusuário.
+
+### Preparar banco/migrations
+
+```bash
+cd backend
+npm install
+npm run prisma:generate
+npm run prisma:migrate
+```
+
+### Endpoints iniciais
+
+- `POST /auth/register`
+- `POST /auth/login`
+- `GET /auth/me` (Bearer token)
+- `GET /users` (Bearer token, role ADMIN/MANAGER)
+- `GET /docs` (documentação rápida em JSON)
+
+Exemplo de registro:
+
+```bash
+curl -X POST http://localhost:4000/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Admin","email":"admin@agro.local","password":"123456","role":"ADMIN"}'
+```
+
