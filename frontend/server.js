@@ -18,7 +18,10 @@ const contentTypes = {
 };
 
 function getSafeFilePath(pathname) {
-  const normalized = normalize(pathname).replace(/^([.][.][/\\])+/, "");
+  const normalized = normalize(pathname)
+    .replace(/^([.][.][/\\])+/, "")
+    .replace(/^[/\\]+/, "");
+
   return join(publicPath, normalized);
 }
 
