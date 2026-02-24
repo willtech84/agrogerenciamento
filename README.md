@@ -225,3 +225,17 @@ cd backend
 npm run test:smoke
 ```
 
+## Próximos passos (Pacote 2)
+
+Para evoluir o projeto com foco em qualidade e confiabilidade, a próxima fase recomendada é:
+
+1. **Testes de integração do backend**
+   - Cobrir fluxos de `auth`, CRUD de `farms/plots/crops/activities`, autorização por perfil e relatórios.
+2. **Validação de payload por schema**
+   - Padronizar validações de entrada para todas as rotas (tipos, obrigatórios, ranges e datas).
+3. **Regras de consistência de domínio**
+   - Garantir coerência entre `farmId`, `plotId` e `cropId` antes de persistir atividades.
+4. **Melhorias de UX no frontend**
+   - Adicionar paginação/filtros de listas, estados de loading/erro e confirmação de ações destrutivas.
+5. **CI de qualidade**
+   - Automatizar checks (`node --check`), testes de integração e smoke test em pipeline.
