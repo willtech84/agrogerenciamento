@@ -6,11 +6,74 @@ import { PrismaClient } from "@prisma/client";
 const port = Number(process.env.PORT || 4000);
 const databaseUrl = process.env.DATABASE_URL || "postgres://postgres:postgres@localhost:5432/farmdb";
 const jwtSecret = process.env.JWT_SECRET || "change_me_in_production";
+const nodeEnv = process.env.NODE_ENV || "development";
+const corsOrigins = (process.env.CORS_ORIGINS || "http://localhost:3000,http://127.0.0.1:3000").split(",").map((item) => item.trim()).filter(Boolean);
+
+if (nodeEnv === "production" && (jwtSecret === "change_me_in_production" || jwtSecret.length < 16)) {
+  throw new Error("JWT_SECRET inseguro para produção. Configure um segredo forte com pelo menos 16 caracteres.");
+}
 
 const prisma = new PrismaClient();
 const app = express();
 
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
+
+function securityHeaders(req, res, next) {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+  next();
+}
+
+function corsMiddleware(req, res, next) {
+  const origin = req.headers.origin;
+
+  if (origin && corsOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+  }
+
+  if (req.method === "OPTIONS") {
+    res.status(204).end();
+    return;
+  }
+
+  next();
+}
+
+function createRateLimiter({ windowMs, maxRequests }) {
+  const store = new Map();
+
+  return (req, res, next) => {
+    const now = Date.now();
+    const ip = req.ip || req.socket.remoteAddress || "unknown";
+    const entry = store.get(ip);
+
+    if (!entry || now - entry.start > windowMs) {
+      store.set(ip, { count: 1, start: now });
+      next();
+      return;
+    }
+
+    if (entry.count >= maxRequests) {
+      res.status(429).json({ error: "Muitas requisições. Tente novamente mais tarde." });
+      return;
+    }
+
+    entry.count += 1;
+    next();
+  };
+}
+
+const globalLimiter = createRateLimiter({ windowMs: 60_000, maxRequests: 300 });
+const authLimiter = createRateLimiter({ windowMs: 10 * 60_000, maxRequests: 20 });
+
+app.use(securityHeaders);
+app.use(corsMiddleware);
+app.use(globalLimiter);
 
 function normalizeEmail(email = "") {
   return String(email).trim().toLowerCase();
@@ -102,7 +165,7 @@ app.get("/docs", (_req, res) => {
   });
 });
 
-app.post("/auth/register", async (req, res) => {
+app.post("/auth/register", authLimiter, async (req, res) => {
   const name = String(req.body?.name || "").trim();
   const email = normalizeEmail(req.body?.email);
   const password = String(req.body?.password || "");
@@ -135,7 +198,7 @@ app.post("/auth/register", async (req, res) => {
   res.status(201).json({ user, token });
 });
 
-app.post("/auth/login", async (req, res) => {
+app.post("/auth/login", authLimiter, async (req, res) => {
   const email = normalizeEmail(req.body?.email);
   const password = String(req.body?.password || "");
 

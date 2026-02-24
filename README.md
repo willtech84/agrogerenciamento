@@ -200,3 +200,28 @@ Exemplo de relatório simples:
 ```bash
 curl -H "Authorization: Bearer SEU_TOKEN" http://localhost:4000/reports/activities-summary
 ```
+
+
+## Hardening (Pacote 1)
+
+- Segurança backend:
+  - validação de `JWT_SECRET` forte em produção;
+  - headers de segurança (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`);
+  - CORS por allowlist via `CORS_ORIGINS`;
+  - rate limit global e reforçado para rotas de autenticação.
+- Operação:
+  - `docker-compose` com `healthcheck` e `restart: unless-stopped` para `db`, `backend` e `frontend`.
+- Configuração:
+  - arquivo `.env.example` com variáveis essenciais para backend/frontend.
+- Teste base automatizado:
+  - `npm run test:smoke` no backend (verifica `/health` e `/docs`).
+
+### Smoke test
+
+Com backend rodando localmente:
+
+```bash
+cd backend
+npm run test:smoke
+```
+
