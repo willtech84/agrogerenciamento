@@ -19,6 +19,20 @@ model User {
   email        String   @unique
   passwordHash String
   role         UserRole @default(OPERATOR)
+  farms        Farm[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model Farm {
+  id          String   @id @default(cuid())
+  name        String
+  location    String?
+  areaHectare Float?
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ownerId])
 }

@@ -48,6 +48,10 @@ function roleRequired(...roles) {
   };
 }
 
+function isPrivileged(user) {
+  return ["ADMIN", "MANAGER"].includes(user?.role);
+}
+
 app.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok", databaseUrl });
 });
@@ -56,7 +60,16 @@ app.get("/", (_req, res) => {
   res.status(200).json({
     message: "Agro Gerenciamento API",
     docs: "/docs",
-    endpoints: ["POST /auth/register", "POST /auth/login", "GET /auth/me", "GET /users"]
+    endpoints: [
+      "POST /auth/register",
+      "POST /auth/login",
+      "GET /auth/me",
+      "GET /users",
+      "GET /farms",
+      "POST /farms",
+      "PUT /farms/:id",
+      "DELETE /farms/:id"
+    ]
   });
 });
 
@@ -84,6 +97,29 @@ app.get("/docs", (_req, res) => {
         method: "GET",
         path: "/users",
         auth: "Bearer token (ADMIN ou MANAGER)"
+      }
+    },
+    farms: {
+      list: {
+        method: "GET",
+        path: "/farms",
+        auth: "Bearer token (ADMIN/MANAGER veem todos; OPERATOR vê os próprios)"
+      },
+      create: {
+        method: "POST",
+        path: "/farms",
+        auth: "Bearer token",
+        body: { name: "Fazenda Santa Luzia", location: "Sorriso/MT", areaHectare: 120.5 }
+      },
+      update: {
+        method: "PUT",
+        path: "/farms/:id",
+        auth: "Bearer token"
+      },
+      delete: {
+        method: "DELETE",
+        path: "/farms/:id",
+        auth: "Bearer token"
       }
     }
   });
@@ -179,6 +215,128 @@ app.get("/users", authRequired, roleRequired("ADMIN", "MANAGER"), async (_req, r
   });
 
   res.status(200).json({ items: users });
+});
+
+app.get("/farms", authRequired, async (req, res) => {
+  const where = isPrivileged(req.user) ? {} : { ownerId: req.user.sub };
+
+  const items = await prisma.farm.findMany({
+    where,
+    include: {
+      owner: {
+        select: { id: true, name: true, email: true }
+      }
+    },
+    orderBy: { createdAt: "desc" }
+  });
+
+  res.status(200).json({ items });
+});
+
+app.post("/farms", authRequired, async (req, res) => {
+  const name = String(req.body?.name || "").trim();
+  const location = req.body?.location ? String(req.body.location).trim() : null;
+  const areaInput = req.body?.areaHectare;
+  const areaHectare = areaInput === undefined || areaInput === null || areaInput === "" ? null : Number(areaInput);
+
+  if (!name) {
+    res.status(400).json({ error: "Nome da fazenda é obrigatório" });
+    return;
+  }
+
+  if (areaHectare !== null && Number.isNaN(areaHectare)) {
+    res.status(400).json({ error: "Área inválida" });
+    return;
+  }
+
+  const farm = await prisma.farm.create({
+    data: {
+      name,
+      location,
+      areaHectare,
+      ownerId: req.user.sub
+    },
+    include: {
+      owner: {
+        select: { id: true, name: true, email: true }
+      }
+    }
+  });
+
+  res.status(201).json({ item: farm });
+});
+
+app.put("/farms/:id", authRequired, async (req, res) => {
+  const farmId = req.params.id;
+  const existing = await prisma.farm.findUnique({ where: { id: farmId } });
+
+  if (!existing) {
+    res.status(404).json({ error: "Fazenda não encontrada" });
+    return;
+  }
+
+  if (!isPrivileged(req.user) && existing.ownerId !== req.user.sub) {
+    res.status(403).json({ error: "Você não pode alterar essa fazenda" });
+    return;
+  }
+
+  const data = {};
+
+  if (req.body?.name !== undefined) {
+    const name = String(req.body.name).trim();
+
+    if (!name) {
+      res.status(400).json({ error: "Nome da fazenda é obrigatório" });
+      return;
+    }
+
+    data.name = name;
+  }
+
+  if (req.body?.location !== undefined) {
+    data.location = req.body.location ? String(req.body.location).trim() : null;
+  }
+
+  if (req.body?.areaHectare !== undefined) {
+    const area = req.body.areaHectare === null || req.body.areaHectare === "" ? null : Number(req.body.areaHectare);
+
+    if (area !== null && Number.isNaN(area)) {
+      res.status(400).json({ error: "Área inválida" });
+      return;
+    }
+
+    data.areaHectare = area;
+  }
+
+  const farm = await prisma.farm.update({
+    where: { id: farmId },
+    data,
+    include: {
+      owner: {
+        select: { id: true, name: true, email: true }
+      }
+    }
+  });
+
+  res.status(200).json({ item: farm });
+});
+
+app.delete("/farms/:id", authRequired, async (req, res) => {
+  const farmId = req.params.id;
+  const existing = await prisma.farm.findUnique({ where: { id: farmId } });
+
+  if (!existing) {
+    res.status(404).json({ error: "Fazenda não encontrada" });
+    return;
+  }
+
+  if (!isPrivileged(req.user) && existing.ownerId !== req.user.sub) {
+    res.status(403).json({ error: "Você não pode excluir essa fazenda" });
+    return;
+  }
+
+  await prisma.farm.delete({ where: { id: farmId } });
+  res.status(204).end();
 });
 
 app.use((_req, res) => {

@@ -129,6 +129,10 @@ npm run prisma:migrate
 - `POST /auth/login`
 - `GET /auth/me` (Bearer token)
 - `GET /users` (Bearer token, role ADMIN/MANAGER)
+- `GET /farms` (Bearer token)
+- `POST /farms` (Bearer token)
+- `PUT /farms/:id` (Bearer token)
+- `DELETE /farms/:id` (Bearer token)
 - `GET /docs` (documentação rápida em JSON)
 
 Exemplo de registro:
@@ -139,3 +143,12 @@ curl -X POST http://localhost:4000/auth/register \
   -d '{"name":"Admin","email":"admin@agro.local","password":"123456","role":"ADMIN"}'
 ```
 
+
+Exemplo de criação de fazenda:
+
+```bash
+curl -X POST http://localhost:4000/farms \
+  -H "Authorization: Bearer SEU_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Fazenda Santa Luzia","location":"Sorriso/MT","areaHectare":120.5}'
+```
