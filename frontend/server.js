@@ -1,11 +1,11 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
-import { extname, join, normalize } from "node:path";
+import { extname, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const port = process.env.PORT || 3000;
 const backendUrl = process.env.BACKEND_URL || "http://localhost:4000";
-const publicDir = new URL("./public/", import.meta.url);
-const publicPath = publicDir.pathname;
+const publicPath = resolve(fileURLToPath(new URL("./public/", import.meta.url)));
 
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
@@ -18,11 +18,14 @@ const contentTypes = {
 };
 
 function getSafeFilePath(pathname) {
-  const normalized = normalize(pathname)
-    .replace(/^([.][.][/\\])+/, "")
-    .replace(/^[/\\]+/, "");
+  const relativePath = pathname === "/" ? "index.html" : pathname.replace(/^[/\\]+/, "");
+  const resolvedPath = resolve(publicPath, relativePath);
 
-  return join(publicPath, normalized);
+  if (resolvedPath !== publicPath && !resolvedPath.startsWith(`${publicPath}${sep}`)) {
+    return null;
+  }
+
+  return resolvedPath;
 }
 
 async function proxyApi(req, res, pathname, search) {
@@ -47,6 +50,12 @@ async function proxyApi(req, res, pathname, search) {
 }
 
 async function serveFile(res, path) {
+  if (!path) {
+    res.writeHead(400, { "Content-Type": "text/plain; charset=utf-8" });
+    res.end("Bad Request");
+    return;
+  }
+
   try {
     const data = await readFile(path);
     const type = contentTypes[extname(path)] || "application/octet-stream";
@@ -66,8 +75,7 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  const pathname = url.pathname === "/" ? "/index.html" : url.pathname;
-  const filePath = getSafeFilePath(pathname);
+  const filePath = getSafeFilePath(url.pathname);
   await serveFile(res, filePath);
 });
 
