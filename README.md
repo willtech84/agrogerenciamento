@@ -43,6 +43,28 @@ npm start
 
 Abra `http://localhost:3000`.
 
+## Rodar com um bloco único (Git Bash no Windows)
+
+Se você estiver no Windows/Git Bash e quiser evitar processos antigos e conflitos de porta, use:
+
+```bash
+cd /c/agro
+./start-local.sh
+```
+
+Esse script:
+- mata processos `node.exe` antigos,
+- instala dependências de backend/frontend,
+- sobe backend (`4000`) e frontend (`3001`),
+- faz validações rápidas com `curl`.
+
+Para parar tudo:
+
+```bash
+cd /c/agro
+./stop-local.sh
+```
+
 ## Instalação como app
 
 No navegador compatível (Chrome/Edge Android/Desktop), abra o frontend e use o botão **Instalar aplicativo** quando aparecer.
@@ -56,19 +78,19 @@ No navegador compatível (Chrome/Edge Android/Desktop), abra o frontend e use o 
 
 Se o frontend subir mas a raiz ainda mostrar "Not Found", confirme no terminal do frontend as linhas de startup:
 
-- `[agro-frontend] Frontend running on port 3000`
+- `[agro-frontend] Frontend running on port 3001`
 - `[agro-frontend] Serving static files from: .../frontend/public`
 
 Comandos rápidos:
 
 ```bash
-cd frontend
-npm start
+cd /c/agro
+./start-local.sh
 ```
 
-E em outro terminal:
+Se quiser parar e limpar portas/processos:
 
 ```bash
-curl -I http://localhost:3000/
-curl http://localhost:3000/api/health
+cd /c/agro
+./stop-local.sh
 ```
