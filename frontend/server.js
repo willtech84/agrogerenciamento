@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 const port = process.env.PORT || 3000;
 const backendUrl = process.env.BACKEND_URL || "http://localhost:4000";
 const publicPath = resolve(fileURLToPath(new URL("./public/", import.meta.url)));
+const indexFilePath = resolve(publicPath, "index.html");
 
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
@@ -18,7 +19,7 @@ const contentTypes = {
 };
 
 function getSafeFilePath(pathname) {
-  const relativePath = pathname === "/" ? "index.html" : pathname.replace(/^[/\\]+/, "");
+  const relativePath = pathname.replace(/^[/\\]+/, "") || "index.html";
   const resolvedPath = resolve(publicPath, relativePath);
 
   if (resolvedPath !== publicPath && !resolvedPath.startsWith(`${publicPath}${sep}`)) {
@@ -49,21 +50,21 @@ async function proxyApi(req, res, pathname, search) {
   }
 }
 
-async function serveFile(res, path) {
-  if (!path) {
+async function serveFile(res, filePath) {
+  if (!filePath) {
     res.writeHead(400, { "Content-Type": "text/plain; charset=utf-8" });
     res.end("Bad Request");
-    return;
+    return false;
   }
 
   try {
-    const data = await readFile(path);
-    const type = contentTypes[extname(path)] || "application/octet-stream";
+    const data = await readFile(filePath);
+    const type = contentTypes[extname(filePath)] || "application/octet-stream";
     res.writeHead(200, { "Content-Type": type });
     res.end(data);
+    return true;
   } catch {
-    res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-    res.end("Not Found");
+    return false;
   }
 }
 
@@ -75,8 +76,24 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  const filePath = getSafeFilePath(url.pathname);
-  await serveFile(res, filePath);
+  const pathname = decodeURIComponent(url.pathname);
+  const filePath = getSafeFilePath(pathname);
+  const served = await serveFile(res, filePath);
+
+  if (served) {
+    return;
+  }
+
+  if (!extname(pathname)) {
+    const fallbackServed = await serveFile(res, indexFilePath);
+
+    if (fallbackServed) {
+      return;
+    }
+  }
+
+  res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+  res.end("Não encontrado");
 });
 
 server.listen(port, () => {
