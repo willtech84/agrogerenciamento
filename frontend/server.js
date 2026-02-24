@@ -1,11 +1,24 @@
 import { createServer } from "node:http";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { extname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const port = process.env.PORT || 3000;
 const backendUrl = process.env.BACKEND_URL || "http://localhost:4000";
-const publicPath = resolve(fileURLToPath(new URL("./public/", import.meta.url)));
+
+const publicPathCandidates = [
+  resolve(process.cwd(), "public"),
+  resolve(fileURLToPath(new URL("./public/", import.meta.url)))
+];
+
+const publicPath = publicPathCandidates.find((candidate) => existsSync(resolve(candidate, "index.html")));
+
+if (!publicPath) {
+  const details = publicPathCandidates.map((candidate) => `- ${candidate}`).join("\n");
+  throw new Error(`Diretório public não encontrado. Caminhos tentados:\n${details}`);
+}
+
 const indexFilePath = resolve(publicPath, "index.html");
 
 const contentTypes = {
@@ -114,4 +127,5 @@ const server = createServer(async (req, res) => {
 
 server.listen(port, () => {
   console.log(`Frontend running on port ${port}`);
+  console.log(`Serving static files from: ${publicPath}`);
 });
