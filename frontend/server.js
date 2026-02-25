@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const port = process.env.PORT || 3000;
 const backendUrl = process.env.BACKEND_URL || "http://localhost:4000";
+<<<<<<< Updated upstream
 
 const publicPathCandidates = [
   resolve(process.cwd(), "public"),
@@ -20,17 +21,19 @@ if (!publicPath) {
 }
 
 const indexFilePath = resolve(publicPath, "index.html");
+=======
+const publicPathCandidates = [resolve(process.cwd(), "public"), resolve(fileURLToPath(new URL("./public/", import.meta.url)))];
+const publicPath = publicPathCandidates.find((candidate) => existsSync(resolve(candidate, "index.html")));
+if (!publicPath) throw new Error("Diretório public não encontrado.");
+const indexFilePath = resolve(publicPath, "index.html");
+const contentTypes = { ".html":"text/html; charset=utf-8", ".js":"text/javascript; charset=utf-8", ".css":"text/css; charset=utf-8", ".json":"application/json; charset=utf-8", ".webmanifest":"application/manifest+json; charset=utf-8", ".svg":"image/svg+xml", ".png":"image/png" };
+>>>>>>> Stashed changes
 
-const contentTypes = {
-  ".html": "text/html; charset=utf-8",
-  ".js": "text/javascript; charset=utf-8",
-  ".css": "text/css; charset=utf-8",
-  ".json": "application/json; charset=utf-8",
-  ".webmanifest": "application/manifest+json; charset=utf-8",
-  ".svg": "image/svg+xml",
-  ".png": "image/png"
-};
+function getSafeFilePath(pathname){ const relativePath=pathname.replace(/^[/\\]+/,"")||"index.html"; const resolvedPath=resolve(publicPath,relativePath); const rel=relative(publicPath,resolvedPath); if(rel.startsWith("..")||isAbsolute(rel)) return null; return resolvedPath; }
+async function proxyApi(req,res,pathname,search){ const target=`${backendUrl}${pathname.replace(/^\/api/,"")}${search}`; try{ const upstream=await fetch(target,{method:req.method,headers:{accept:req.headers.accept||"application/json"}}); const body=await upstream.arrayBuffer(); res.writeHead(upstream.status,{"Content-Type": upstream.headers.get("content-type") || "application/json; charset=utf-8"}); res.end(Buffer.from(body)); } catch(error){ res.writeHead(502,{"Content-Type":"application/json; charset=utf-8"}); res.end(JSON.stringify({error:"Backend indisponível",details:error.message})); } }
+async function serveFile(res,filePath){ if(!filePath) return false; try{ const data=await readFile(filePath); res.writeHead(200,{"Content-Type": contentTypes[extname(filePath)] || "application/octet-stream"}); res.end(data); return true; } catch { return false; } }
 
+<<<<<<< Updated upstream
 function getSafeFilePath(pathname) {
   const relativePath = pathname.replace(/^[/\\]+/, "") || "index.html";
   const resolvedPath = resolve(publicPath, relativePath);
@@ -129,4 +132,12 @@ server.listen(port, () => {
   console.log(`[agro-frontend] Frontend running on port ${port}`);
   console.log(`[agro-frontend] Serving static files from: ${publicPath}`);
   console.log(`[agro-frontend] cwd: ${process.cwd()}`);
+=======
+const server=createServer(async(req,res)=>{ const url=new URL(req.url??"/",`http://${req.headers.host}`); if(url.pathname.startsWith("/api/")) return proxyApi(req,res,url.pathname,url.search); let pathname="/"; try{ pathname=decodeURIComponent(url.pathname);}catch{ res.writeHead(400,{"Content-Type":"text/plain; charset=utf-8"}); return res.end("Bad Request"); }
+  if(pathname==="/"){ if(await serveFile(res,indexFilePath)) return; }
+  const filePath=getSafeFilePath(pathname); if(await serveFile(res,filePath)) return;
+  if(!extname(pathname)){ if(await serveFile(res,indexFilePath)) return; }
+  res.writeHead(404,{"Content-Type":"text/plain; charset=utf-8"}); res.end("Not Found");
+>>>>>>> Stashed changes
 });
+server.listen(port,()=>{ console.log(`[agro-frontend] Frontend running on port ${port}`); console.log(`[agro-frontend] Serving static files from: ${publicPath}`); console.log(`[agro-frontend] cwd: ${process.cwd()}`); });
