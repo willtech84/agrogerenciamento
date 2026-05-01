@@ -1,9 +1,19 @@
 {
   "name": "agro-frontend",
   "version": "1.0.0",
-  "description": "Frontend for Agro Gerenciamento",
+  "private": true,
   "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "build": "node scripts/build.mjs",
+    "android:sync": "npx cap sync android",
+    "android:prepare": "node scripts/prepare-android.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/core": "^7.4.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.3"
   }
 }

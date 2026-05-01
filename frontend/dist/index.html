@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agro Gerenciamento</title>
+    <style>
+      body {
+        font-family: "Segoe UI", sans-serif;
+        margin: 0;
+        background: #f4f7f5;
+        color: #1f2a24;
+      }
+      header {
+        background: #1d6f42;
+        color: #fff;
+        padding: 24px;
+        text-align: center;
+      }
+      main {
+        max-width: 720px;
+        margin: 32px auto;
+        padding: 0 16px;
+      }
+      .card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+      }
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        font-weight: 600;
+      }
+      .status.ok {
+        background: #e2f6ea;
+        color: #1a7f37;
+      }
+      .status.error {
+        background: #ffe7e7;
+        color: #c81e1e;
+      }
+      .details {
+        margin-top: 16px;
+        font-family: "Consolas", monospace;
+        background: #f2f4f3;
+        padding: 12px;
+        border-radius: 8px;
+      }
+      button {
+        margin-top: 16px;
+        background: #1d6f42;
+        color: #fff;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Agro Gerenciamento</h1>
+      <p>Console inicial do aplicativo</p>
+    </header>
+    <main>
+      <div class="card">
+        <h2>Status do backend</h2>
+        <div id="status" class="status">Carregando...</div>
+        <div id="details" class="details"></div>
+        <button id="refresh">Atualizar status</button>
+      </div>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

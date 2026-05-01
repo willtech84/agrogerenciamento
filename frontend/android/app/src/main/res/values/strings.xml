@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Agro Gerenciamento</string>
+    <string name="title_activity_main">Agro Gerenciamento</string>
+    <string name="package_name">com.agro.gerenciamento</string>
+    <string name="custom_url_scheme">com.agro.gerenciamento</string>
+</resources>
