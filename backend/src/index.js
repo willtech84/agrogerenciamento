@@ -54,8 +54,14 @@ createServer(async (req, res) => {
       const item = { id: taskId++, title: String(b.title), fieldId: Number(b.fieldId), status: "todo" };
       tasks.push(item);
       return json(res, 201, item);
-    }
-
+    } 
+if (req.method === "GET" && url.pathname === "/api/export") {
+  return json(res, 200, {
+    exportedAt: new Date().toISOString(),
+    fields,
+    tasks
+  });
+}
     return json(res, 404, { error: "Not Found" });
   } catch {
     return json(res, 400, { error: "JSON inválido." });
